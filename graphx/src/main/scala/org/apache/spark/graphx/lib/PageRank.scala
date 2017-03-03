@@ -22,6 +22,7 @@ import scala.reflect.ClassTag
 import breeze.linalg.{Vector => BV}
 
 import org.apache.spark.graphx._
+import org.apache.spark.profiler.GraphXLogger
 import org.apache.spark.internal.Logging
 import org.apache.spark.ml.linalg.{Vector, Vectors}
 
@@ -293,6 +294,7 @@ object PageRank extends Logging {
     require(resetProb >= 0 && resetProb <= 1, s"Random reset probability must belong" +
       s" to [0, 1], but got ${resetProb}")
 
+    val logger = new GraphXLogger("pageRank","pageRank","pageRank")
     val personalized = srcId.isDefined
     val src: VertexId = srcId.getOrElse(-1L)
 
@@ -311,11 +313,19 @@ object PageRank extends Logging {
       }
       .cache()
 
+    // var pregelProgram = null 
+
     // Define the three functions needed to implement PageRank in the GraphX
     // version of Pregel
     def vertexProgram(id: VertexId, attr: (Double, Double), msgSum: Double): (Double, Double) = {
+      val startTime: Long = System.nanoTime()
+      
       val (oldPR, lastDelta) = attr
       val newPR = oldPR + (1.0 - resetProb) * msgSum
+      
+      // logger.logVPExecutionTime("pageRankDataset","pageRankProgram", id,  
+      //   Pregel.getCurrentIteration, System.nanoTime() - startTime)
+      
       (newPR, newPR - oldPR)
     }
 
@@ -332,6 +342,10 @@ object PageRank extends Logging {
     }
 
     def sendMessage(edge: EdgeTriplet[(Double, Double), Double]) = {
+      logger.logIncomingMsg("pageRankDataset","pageRankProgram", edge.dstId, 
+        Pregel.getCurrentIteration, 1)
+      logger.logOutgoingMsg("pageRankDataset","pageRankProgram", edge.srcId, 
+        Pregel.getCurrentIteration, 1)
       if (edge.srcAttr._2 > tol) {
         Iterator((edge.dstId, edge.srcAttr._2 * edge.attr))
       } else {

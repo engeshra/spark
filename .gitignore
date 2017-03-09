@@ -88,3 +88,9 @@ spark-warehouse/
 *.Rproj.*
 
 .Rproj.user
+
+
+# For Experments
+experiments/
+ec2/
+

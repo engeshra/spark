@@ -26,6 +26,7 @@ import org.apache.spark.profiler.GraphXLogger
 import org.apache.spark.internal.Logging
 import org.apache.spark.ml.linalg.{Vector, Vectors}
 
+
 /**
  * PageRank algorithm implementation. There are two implementations of PageRank implemented.
  *
@@ -323,8 +324,8 @@ object PageRank extends Logging {
       val (oldPR, lastDelta) = attr
       val newPR = oldPR + (1.0 - resetProb) * msgSum
       
-      // logger.logVPExecutionTime("pageRankDataset","pageRankProgram", id,  
-      //   Pregel.getCurrentIteration, System.nanoTime() - startTime)
+      logger.logVPExecutionTime("pageRankDataset","pageRankProgram", id,  
+        Pregel.getCurrentIteration, System.nanoTime() - startTime)
       
       (newPR, newPR - oldPR)
     }

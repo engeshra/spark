@@ -22,7 +22,10 @@ package org.apache.spark.examples.graphx
 import org.apache.spark.graphx.GraphLoader
 // $example off$
 import org.apache.spark.sql.SparkSession
+// parsing program output
+import org.apache.spark.graphx.util.GraphXStatisticsParser
 
+import java.io._
 /**
  * A PageRank example on social network dataset
  * Run with
@@ -30,7 +33,7 @@ import org.apache.spark.sql.SparkSession
  * bin/run-example graphx.PageRankExample
  * }}}
  */
-object PageRankExample {
+object PageRankExample {    
   def main(args: Array[String]): Unit = {
     // Creates a SparkSession.
     val spark = SparkSession
@@ -39,6 +42,8 @@ object PageRankExample {
       .getOrCreate()
     val sc = spark.sparkContext
 
+    val logFile = new File("experiments/logs/experiment.log")
+    logFile.delete()
     // $example on$
     // Load the edges as a graph
     val graph = GraphLoader.edgeListFile(sc, "data/graphx/followers.txt")
@@ -54,6 +59,8 @@ object PageRankExample {
     }
     // Print the result
     println(ranksByUsername.collect().mkString("\n"))
+    val parser = new GraphXStatisticsParser()
+    parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", "test_dataset", "pageRank", graph)
     // $example off$
     spark.stop()
   }

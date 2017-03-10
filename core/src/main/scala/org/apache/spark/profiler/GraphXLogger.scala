@@ -29,7 +29,7 @@ import org.apache.spark.util.Utils
  * Log4j is used for logging in a separated file, away from spark logger
  */
 class GraphXLogger (val loggerName: String, val applicationName: String, 
-		val logPath: String) extends Serializable {
+	val logPath: String) extends Serializable {
 	private var logObject: Logger = null
 	private var application: String = applicationName
 	private var logName: String = loggerName

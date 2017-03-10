@@ -46,7 +46,7 @@ object PageRankExample {
     logFile.delete()
     // $example on$
     // Load the edges as a graph
-    val graph = GraphLoader.edgeListFile(sc, "data/graphx/followers.txt")
+    val graph = GraphLoader.edgeListFile(sc, args(1))
     // Run PageRank
     val ranks = graph.pageRank(0.0001).vertices
     // Join the ranks with the usernames
@@ -60,7 +60,7 @@ object PageRankExample {
     // Print the result
     println(ranksByUsername.collect().mkString("\n"))
     val parser = new GraphXStatisticsParser()
-    parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", "test_dataset", "pageRank", graph)
+    parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", args(0), "pageRank", graph)
     // $example off$
     spark.stop()
   }

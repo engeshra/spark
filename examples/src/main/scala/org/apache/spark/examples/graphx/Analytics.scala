@@ -49,7 +49,8 @@ object Analytics extends Logging {
 
     val taskType = args(0)
     val fname = args(1)
-    val optionsList = args.drop(2).map { arg =>
+    val filePath = args(2)
+    val optionsList = args.drop(3).map { arg =>
       arg.dropWhile(_ == '-').split('=') match {
         case Array(opt, v) => (opt -> v)
         case _ => throw new IllegalArgumentException("Invalid argument: " + arg)
@@ -91,7 +92,7 @@ object Analytics extends Logging {
 
         val sc = new SparkContext(conf.setAppName("PageRank(" + fname + ")"))
 
-        val unpartitionedGraph = GraphLoader.edgeListFile(sc, fname,
+        val unpartitionedGraph = GraphLoader.edgeListFile(sc, filePath,
           numEdgePartitions = numEPart,
           edgeStorageLevel = edgeStorageLevel,
           vertexStorageLevel = vertexStorageLevel).cache()
@@ -114,7 +115,7 @@ object Analytics extends Logging {
 
         // parse experiments log and then push result to statistical results
         val parser = new GraphXStatisticsParser()
-        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", args(0), "pageRank", graph)
+        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", fname, "pageRank", graph)
 
         sc.stop()
 
@@ -139,7 +140,7 @@ object Analytics extends Logging {
 
         // parse experiments log and then push result to statistical results
         val parser = new GraphXStatisticsParser()
-        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", args(0), "ConnectedComponents", graph)
+        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", fname, "ConnectedComponents", graph)
 
         sc.stop()
 
@@ -167,7 +168,7 @@ object Analytics extends Logging {
 
         // parse experiments log and then push result to statistical results
         val parser = new GraphXStatisticsParser()
-        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", args(0), "TriangleCount", graph)
+        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", fname, "TriangleCount", graph)
 
         sc.stop()
 

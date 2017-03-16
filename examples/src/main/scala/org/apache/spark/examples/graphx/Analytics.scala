@@ -50,7 +50,8 @@ object Analytics extends Logging {
     val taskType = args(0)
     val fname = args(1)
     val filePath = args(2)
-    val optionsList = args.drop(3).map { arg =>
+    val numEPart = args(3).toInt
+    val optionsList = args.drop(4).map { arg =>
       arg.dropWhile(_ == '-').split('=') match {
         case Array(opt, v) => (opt -> v)
         case _ => throw new IllegalArgumentException("Invalid argument: " + arg)
@@ -61,10 +62,6 @@ object Analytics extends Logging {
     val conf = new SparkConf()
     GraphXUtils.registerKryoClasses(conf)
 
-    val numEPart = options.remove("numEPart").map(_.toInt).getOrElse {
-      println("Set the number of edge partitions using --numEPart.")
-      sys.exit(1)
-    }
     val partitionStrategy: Option[PartitionStrategy] = options.remove("partStrategy")
       .map(PartitionStrategy.fromString(_))
     val edgeStorageLevel = options.remove("edgeStorageLevel")

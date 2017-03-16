@@ -26,6 +26,10 @@ import org.apache.spark.graphx.PartitionStrategy._
 import org.apache.spark.graphx.lib._
 import org.apache.spark.internal.Logging
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.graphx.util.GraphXStatisticsParser
+
+import java.io._
+
 
 /**
  * Driver program for running graph algorithms.
@@ -67,6 +71,10 @@ object Analytics extends Logging {
     val vertexStorageLevel = options.remove("vertexStorageLevel")
       .map(StorageLevel.fromString(_)).getOrElse(StorageLevel.MEMORY_ONLY)
 
+    // delete log file
+    val logFile = new File("experiments/logs/experiment.log")
+    logFile.delete()
+
     taskType match {
       case "pagerank" =>
         val tol = options.remove("tol").map(_.toFloat).getOrElse(0.001F)
@@ -104,6 +112,10 @@ object Analytics extends Logging {
           pr.map { case (id, r) => id + "\t" + r }.saveAsTextFile(outFname)
         }
 
+        // parse experiments log and then push result to statistical results
+        val parser = new GraphXStatisticsParser()
+        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", args(0), "pageRank", graph)
+
         sc.stop()
 
       case "cc" =>
@@ -124,6 +136,11 @@ object Analytics extends Logging {
 
         val cc = ConnectedComponents.run(graph)
         println("Components: " + cc.vertices.map { case (vid, data) => data }.distinct())
+
+        // parse experiments log and then push result to statistical results
+        val parser = new GraphXStatisticsParser()
+        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", args(0), "ConnectedComponents", graph)
+
         sc.stop()
 
       case "triangles" =>
@@ -147,6 +164,11 @@ object Analytics extends Logging {
         println("Triangles: " + triangles.vertices.map {
           case (vid, data) => data.toLong
         }.reduce(_ + _) / 3)
+
+        // parse experiments log and then push result to statistical results
+        val parser = new GraphXStatisticsParser()
+        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", args(0), "TriangleCount", graph)
+
         sc.stop()
 
       case _ =>

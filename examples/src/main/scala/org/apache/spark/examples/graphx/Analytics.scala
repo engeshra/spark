@@ -26,6 +26,10 @@ import org.apache.spark.graphx.PartitionStrategy._
 import org.apache.spark.graphx.lib._
 import org.apache.spark.internal.Logging
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.graphx.util.GraphXStatisticsParser
+
+import java.io._
+
 
 /**
  * Driver program for running graph algorithms.
@@ -45,7 +49,9 @@ object Analytics extends Logging {
 
     val taskType = args(0)
     val fname = args(1)
-    val optionsList = args.drop(2).map { arg =>
+    val filePath = args(2)
+    val numEPart = args(3).toInt
+    val optionsList = args.drop(4).map { arg =>
       arg.dropWhile(_ == '-').split('=') match {
         case Array(opt, v) => (opt -> v)
         case _ => throw new IllegalArgumentException("Invalid argument: " + arg)
@@ -56,16 +62,16 @@ object Analytics extends Logging {
     val conf = new SparkConf()
     GraphXUtils.registerKryoClasses(conf)
 
-    val numEPart = options.remove("numEPart").map(_.toInt).getOrElse {
-      println("Set the number of edge partitions using --numEPart.")
-      sys.exit(1)
-    }
     val partitionStrategy: Option[PartitionStrategy] = options.remove("partStrategy")
       .map(PartitionStrategy.fromString(_))
     val edgeStorageLevel = options.remove("edgeStorageLevel")
       .map(StorageLevel.fromString(_)).getOrElse(StorageLevel.MEMORY_ONLY)
     val vertexStorageLevel = options.remove("vertexStorageLevel")
       .map(StorageLevel.fromString(_)).getOrElse(StorageLevel.MEMORY_ONLY)
+
+    // delete log file
+    val logFile = new File("experiments/logs/experiment.log")
+    logFile.delete()
 
     taskType match {
       case "pagerank" =>
@@ -83,7 +89,7 @@ object Analytics extends Logging {
 
         val sc = new SparkContext(conf.setAppName("PageRank(" + fname + ")"))
 
-        val unpartitionedGraph = GraphLoader.edgeListFile(sc, fname,
+        val unpartitionedGraph = GraphLoader.edgeListFile(sc, filePath,
           numEdgePartitions = numEPart,
           edgeStorageLevel = edgeStorageLevel,
           vertexStorageLevel = vertexStorageLevel).cache()
@@ -103,6 +109,10 @@ object Analytics extends Logging {
           logWarning("Saving pageranks of pages to " + outFname)
           pr.map { case (id, r) => id + "\t" + r }.saveAsTextFile(outFname)
         }
+
+        // parse experiments log and then push result to statistical results
+        val parser = new GraphXStatisticsParser()
+        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", fname, "pageRank", graph)
 
         sc.stop()
 
@@ -124,6 +134,11 @@ object Analytics extends Logging {
 
         val cc = ConnectedComponents.run(graph)
         println("Components: " + cc.vertices.map { case (vid, data) => data }.distinct())
+
+        // parse experiments log and then push result to statistical results
+        val parser = new GraphXStatisticsParser()
+        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", fname, "ConnectedComponents", graph)
+
         sc.stop()
 
       case "triangles" =>
@@ -147,6 +162,11 @@ object Analytics extends Logging {
         println("Triangles: " + triangles.vertices.map {
           case (vid, data) => data.toLong
         }.reduce(_ + _) / 3)
+
+        // parse experiments log and then push result to statistical results
+        val parser = new GraphXStatisticsParser()
+        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", fname, "TriangleCount", graph)
+
         sc.stop()
 
       case _ =>

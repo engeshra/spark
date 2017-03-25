@@ -55,6 +55,13 @@ import org.apache.spark.internal.Logging
  */
 object Pregel extends Logging {
 
+  private var currentIteration: Int = 0
+
+  def setCurrentIteration(iteration: Int): Unit = {
+    this.currentIteration = iteration
+  }
+
+  def getCurrentIteration(): Int = this.currentIteration
   /**
    * Execute a Pregel-like iterative vertex-parallel abstraction.  The
    * user-defined vertex-program `vprog` is executed in parallel on
@@ -145,6 +152,7 @@ object Pregel extends Logging {
       // and the vertices of g).
       activeMessages = messages.count()
 
+      setCurrentIteration(i)
       logInfo("Pregel finished iteration " + i)
 
       // Unpersist the RDDs hidden by newly-materialized RDDs

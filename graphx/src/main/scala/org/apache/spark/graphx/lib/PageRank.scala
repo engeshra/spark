@@ -22,8 +22,10 @@ import scala.reflect.ClassTag
 import breeze.linalg.{Vector => BV}
 
 import org.apache.spark.graphx._
+import org.apache.spark.profiler.GraphXLogger
 import org.apache.spark.internal.Logging
 import org.apache.spark.ml.linalg.{Vector, Vectors}
+
 
 /**
  * PageRank algorithm implementation. There are two implementations of PageRank implemented.
@@ -115,9 +117,9 @@ object PageRank extends Logging {
     val src: VertexId = srcId.getOrElse(-1L)
 
     // Initialize the PageRank graph with each edge attribute having
-    // weight 1/outDegree and each vertex with attribute resetProb.
+    // weight 1/outDegree and each vertex with attribute 1.0.
     // When running personalized pagerank, only the source vertex
-    // has an attribute resetProb. All others are set to 0.
+    // has an attribute 1.0. All others are set to 0.
     var rankGraph: Graph[Double, Double] = graph
       // Associate the degree with each vertex
       .outerJoinVertices(graph.outDegrees) { (vid, vdata, deg) => deg.getOrElse(0) }
@@ -125,7 +127,7 @@ object PageRank extends Logging {
       .mapTriplets( e => 1.0 / e.srcAttr, TripletFields.Src )
       // Set the vertex attributes to the initial pagerank values
       .mapVertices { (id, attr) =>
-        if (!(id != src && personalized)) resetProb else 0.0
+        if (!(id != src && personalized)) 1.0 else 0.0
       }
 
     def delta(u: VertexId, v: VertexId): Double = { if (u == v) 1.0 else 0.0 }
@@ -150,8 +152,8 @@ object PageRank extends Logging {
         (src: VertexId, id: VertexId) => resetProb
       }
 
-      rankGraph = rankGraph.joinVertices(rankUpdates) {
-        (id, oldRank, msgSum) => rPrb(src, id) + (1.0 - resetProb) * msgSum
+      rankGraph = rankGraph.outerJoinVertices(rankUpdates) {
+        (id, oldRank, msgSumOpt) => rPrb(src, id) + (1.0 - resetProb) * msgSumOpt.getOrElse(0.0)
       }.cache()
 
       rankGraph.edges.foreachPartition(x => {}) // also materializes rankGraph.vertices
@@ -196,7 +198,7 @@ object PageRank extends Logging {
     // we won't be able to store its activations in a sparse vector
     val zero = Vectors.sparse(sources.size, List()).asBreeze
     val sourcesInitMap = sources.zipWithIndex.map { case (vid, i) =>
-      val v = Vectors.sparse(sources.size, Array(i), Array(resetProb)).asBreeze
+      val v = Vectors.sparse(sources.size, Array(i), Array(1.0)).asBreeze
       (vid, v)
     }.toMap
     val sc = graph.vertices.sparkContext
@@ -225,11 +227,11 @@ object PageRank extends Logging {
         ctx => ctx.sendToDst(ctx.srcAttr :* ctx.attr),
         (a : BV[Double], b : BV[Double]) => a :+ b, TripletFields.Src)
 
-      rankGraph = rankGraph.joinVertices(rankUpdates) {
-        (vid, oldRank, msgSum) =>
-          val popActivations: BV[Double] = msgSum :* (1.0 - resetProb)
+      rankGraph = rankGraph.outerJoinVertices(rankUpdates) {
+        (vid, oldRank, msgSumOpt) =>
+          val popActivations: BV[Double] = msgSumOpt.getOrElse(zero) :* (1.0 - resetProb)
           val resetActivations = if (sourcesInitMapBC.value contains vid) {
-            sourcesInitMapBC.value(vid)
+            sourcesInitMapBC.value(vid) :* resetProb
           } else {
             zero
           }
@@ -293,6 +295,7 @@ object PageRank extends Logging {
     require(resetProb >= 0 && resetProb <= 1, s"Random reset probability must belong" +
       s" to [0, 1], but got ${resetProb}")
 
+    val logger = new GraphXLogger("pageRank","pageRank","pageRank")
     val personalized = srcId.isDefined
     val src: VertexId = srcId.getOrElse(-1L)
 
@@ -307,15 +310,23 @@ object PageRank extends Logging {
       .mapTriplets( e => 1.0 / e.srcAttr )
       // Set the vertex attributes to (initialPR, delta = 0)
       .mapVertices { (id, attr) =>
-        if (id == src) (resetProb, Double.NegativeInfinity) else (0.0, 0.0)
+        if (id == src) (1.0, Double.NegativeInfinity) else (0.0, 0.0)
       }
       .cache()
+
+    // var pregelProgram = null 
 
     // Define the three functions needed to implement PageRank in the GraphX
     // version of Pregel
     def vertexProgram(id: VertexId, attr: (Double, Double), msgSum: Double): (Double, Double) = {
+      val startTime: Long = System.nanoTime()
+      
       val (oldPR, lastDelta) = attr
       val newPR = oldPR + (1.0 - resetProb) * msgSum
+      
+      logger.logVPExecutionTime("pageRankDataset","pageRankProgram", id,  
+        Pregel.getCurrentIteration, System.nanoTime() - startTime)
+      
       (newPR, newPR - oldPR)
     }
 
@@ -323,7 +334,7 @@ object PageRank extends Logging {
       msgSum: Double): (Double, Double) = {
       val (oldPR, lastDelta) = attr
       var teleport = oldPR
-      val delta = if (src==id) 1.0 else 0.0
+      val delta = if (src==id) resetProb else 0.0
       teleport = oldPR*delta
 
       val newPR = teleport + (1.0 - resetProb) * msgSum
@@ -332,6 +343,10 @@ object PageRank extends Logging {
     }
 
     def sendMessage(edge: EdgeTriplet[(Double, Double), Double]) = {
+      logger.logIncomingMsg("pageRankDataset","pageRankProgram", edge.dstId, 
+        Pregel.getCurrentIteration, 1)
+      logger.logOutgoingMsg("pageRankDataset","pageRankProgram", edge.srcId, 
+        Pregel.getCurrentIteration, 1)
       if (edge.srcAttr._2 > tol) {
         Iterator((edge.dstId, edge.srcAttr._2 * edge.attr))
       } else {

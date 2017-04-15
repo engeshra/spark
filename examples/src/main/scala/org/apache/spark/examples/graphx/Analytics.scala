@@ -98,21 +98,22 @@ object Analytics extends Logging {
         println("GRAPHX: Number of vertices " + graph.vertices.count)
         println("GRAPHX: Number of edges " + graph.edges.count)
 
-        val pr = (numIterOpt match {
-          case Some(numIter) => PageRank.run(graph, numIter)
-          case None => PageRank.runUntilConvergence(graph, tol)
-        }).vertices.cache()
+        var inOutMsgs = sc.longAccumulator("In/Out Messages")
+        var avgExecutionTime = sc.longAccumulator("Avg Execution Time")
+        val pr = PageRank.runWithAnalytics(graph, tol, (inOutMsgs, avgExecutionTime)).vertices.cache()
+        
+        println("============== GRAPHX: In/Out Messages: "+ inOutMsgs)
+        println("============== GRAPHX: Avg Execution Time: "+ avgExecutionTime.avg)
 
         println("GRAPHX: Total rank: " + pr.map(_._2).reduce(_ + _))
-
         if (!outFname.isEmpty) {
           logWarning("Saving pageranks of pages to " + outFname)
           pr.map { case (id, r) => id + "\t" + r }.saveAsTextFile(outFname)
         }
 
         // parse experiments log and then push result to statistical results
-        val parser = new GraphXStatisticsParser()
-        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", fname, "pageRank", graph)
+        // val parser = new GraphXStatisticsParser()
+        // parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", fname, "pageRank", graph)
 
         sc.stop()
 

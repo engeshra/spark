@@ -20,6 +20,7 @@ package org.apache.spark.graphx
 import scala.reflect.ClassTag
 import scala.util.Random
 
+import org.apache.spark.util.LongAccumulator
 import org.apache.spark.graphx.lib._
 import org.apache.spark.ml.linalg.Vector
 import org.apache.spark.rdd.RDD
@@ -378,6 +379,16 @@ class GraphOps[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED]) extends Seriali
    */
   def pageRank(tol: Double, resetProb: Double = 0.15): Graph[Double, Double] = {
     PageRank.runUntilConvergence(graph, tol, resetProb)
+  }
+
+  /**
+   * Run a dynamic version of PageRank returning a graph with vertex attributes containing the
+   * PageRank and edge attributes containing the normalized edge weight.
+   *
+   * @see [[org.apache.spark.graphx.lib.PageRank$#runUntilConvergence]]
+   */
+  def pageRankWithAnalytics(tol: Double, analytics: (LongAccumulator, LongAccumulator), resetProb: Double = 0.15): Graph[Double, Double] = {
+    PageRank.runWithAnalytics(graph, tol, analytics,resetProb)
   }
 
 

@@ -51,6 +51,7 @@ class GraphXLogger (val loggerName: String, val applicationName: String,
 	 * Intializer for the file appender using file configuration file
 	 */
 	private def initialize(): Unit = {
+		println("+++++++++++ initialize logger +++++++++++++++++")
 		if(!this.initialized) {			  
 			// var fileAppender = new FileAppender
 			// println("FilePath_log"+fileAppender.getFile())
@@ -82,6 +83,7 @@ class GraphXLogger (val loggerName: String, val applicationName: String,
 	 */
 	def logVPExecutionTime(dataset_name: String, program_name: String, 
 		vertex_id: Double, iteration_index: Integer, executionTime: Long): Unit = {
+		println("++++++++ Logging execution time +++++++++++++++++++")
     log.info("[ExecutionTime]"+"["+
     	dataset_name + "|"+
     	program_name + "|"+
@@ -102,6 +104,7 @@ class GraphXLogger (val loggerName: String, val applicationName: String,
 	 */
   def logIncomingMsg(dataset_name: String, program_name: String, 
 		vertex_id: Double, iteration_index: Int, message_number: Long): Unit = {
+  	println("++++++++ Logging incoming msg +++++++++++++++++++")
     log.info("[IncomingMsg]"+"["+
     	dataset_name + "|"+
     	program_name + "|"+
@@ -122,6 +125,7 @@ class GraphXLogger (val loggerName: String, val applicationName: String,
 	 */
   def logOutgoingMsg(dataset_name: String, program_name: String, 
 		vertex_id: Double, iteration_index: Int, message_number: Long): Unit = {
+  	println("++++++++ Logging outgoing msg +++++++++++++++++++")
     log.info("[OutgoingMsg]"+"["+
     	dataset_name + "|"+
     	program_name + "|"+

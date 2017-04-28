@@ -20,6 +20,7 @@ package org.apache.spark.graphx
 import scala.reflect.ClassTag
 import scala.util.Random
 
+import org.apache.spark.graphx._
 import org.apache.spark.util.LongAccumulator
 import org.apache.spark.graphx.lib._
 import org.apache.spark.ml.linalg.Vector
@@ -232,6 +233,17 @@ class GraphOps[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED]) extends Seriali
     graph.outerJoinVertices(table)(uf)
   }
 
+  def joinVerticesWithAnalytics[U: ClassTag](table: RDD[(VertexId, U)])(analytics: PregelAnalytics)(mapFunc: (VertexId, VD, U) => VD)
+    : Graph[VD, ED] = {
+    val uf = (id: VertexId, data: VD, o: Option[U]) => {
+      o match {
+        case Some(u) => mapFunc(id, data, u)
+        case None => data
+      }
+    }
+    graph.outerJoinVerticesWithAnalytics(table)(analytics)(uf)
+  }
+
   /**
    * Filter the graph by computing some values to filter on, and applying the predicates.
    *
@@ -387,7 +399,7 @@ class GraphOps[VD: ClassTag, ED: ClassTag](graph: Graph[VD, ED]) extends Seriali
    *
    * @see [[org.apache.spark.graphx.lib.PageRank$#runUntilConvergence]]
    */
-  def pageRankWithAnalytics(tol: Double, analytics: (LongAccumulator, LongAccumulator), resetProb: Double = 0.15): Graph[Double, Double] = {
+  def pageRankWithAnalytics(tol: Double, analytics: (LongAccumulator, LongAccumulator, LongAccumulator), resetProb: Double = 0.15): Graph[Double, Double] = {
     PageRank.runWithAnalytics(graph, tol, analytics,resetProb)
   }
 

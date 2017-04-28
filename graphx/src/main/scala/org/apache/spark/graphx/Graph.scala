@@ -20,6 +20,7 @@ package org.apache.spark.graphx
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
+import org.apache.spark.graphx._
 import org.apache.spark.graphx.impl._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
@@ -438,6 +439,10 @@ abstract class Graph[VD: ClassTag, ED: ClassTag] protected () extends Serializab
    * }}}
    */
   def outerJoinVertices[U: ClassTag, VD2: ClassTag](other: RDD[(VertexId, U)])
+      (mapFunc: (VertexId, VD, Option[U]) => VD2)(implicit eq: VD =:= VD2 = null)
+    : Graph[VD2, ED]
+
+  def outerJoinVerticesWithAnalytics[U: ClassTag, VD2: ClassTag](other: RDD[(VertexId, U)])(analytics: PregelAnalytics)
       (mapFunc: (VertexId, VD, Option[U]) => VD2)(implicit eq: VD =:= VD2 = null)
     : Graph[VD2, ED]
 

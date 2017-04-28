@@ -327,8 +327,8 @@ object PageRank extends Logging {
       val (oldPR, lastDelta) = attr
       val newPR = oldPR + (1.0 - resetProb) * msgSum
       
-      logger.logVPExecutionTime("pageRankDataset","pageRankProgram", id,  
-        Pregel.getCurrentIteration, System.nanoTime() - startTime)
+      // logger.logVPExecutionTime("pageRankDataset","pageRankProgram", id,  
+      //   Pregel.getCurrentIteration, System.nanoTime() - startTime)
       vertexProgramRuns += 1
       if (vertexProgramRuns > 1)
         avgRunTime = (avgRunTime + System.nanoTime() - startTime)/2
@@ -351,10 +351,10 @@ object PageRank extends Logging {
     }
 
     def sendMessage(edge: EdgeTriplet[(Double, Double), Double]) = {
-      logger.logIncomingMsg("pageRankDataset","pageRankProgram", edge.dstId, 
-        Pregel.getCurrentIteration, 1)
-      logger.logOutgoingMsg("pageRankDataset","pageRankProgram", edge.srcId, 
-        Pregel.getCurrentIteration, 1)
+      // logger.logIncomingMsg("pageRankDataset","pageRankProgram", edge.dstId, 
+      //   Pregel.getCurrentIteration, 1)
+      // logger.logOutgoingMsg("pageRankDataset","pageRankProgram", edge.srcId, 
+      //   Pregel.getCurrentIteration, 1)
       inOutMsgs += 1
       if (edge.srcAttr._2 > tol) {
         Iterator((edge.dstId, edge.srcAttr._2 * edge.attr))
@@ -383,7 +383,7 @@ object PageRank extends Logging {
   } // end of deltaPageRank
 
   def runWithAnalytics[VD: ClassTag, ED: ClassTag](
-      graph: Graph[VD, ED], tol: Double, analytics: (LongAccumulator, LongAccumulator), resetProb: Double = 0.15,
+      graph: Graph[VD, ED], tol: Double, analytics: (LongAccumulator, LongAccumulator, LongAccumulator), resetProb: Double = 0.15,
       srcId: Option[VertexId] = None): Graph[Double, Double] =
   {
     require(tol >= 0, s"Tolerance must be no less than 0, but got ${tol}")
@@ -393,7 +393,7 @@ object PageRank extends Logging {
     val logger = new GraphXLogger("pageRank","pageRank","pageRank")
     val personalized = srcId.isDefined
     val src: VertexId = srcId.getOrElse(-1L)
-    var (inOutMsgs, avgExc) = analytics
+    var (inOutMsgs, avgExc, numberOfReduce) = analytics
     // var inOutMsgs: Long = 0
     // var vertexProgramRuns: Long = 0
     // var avgRunTime: Long = 0 
@@ -422,8 +422,8 @@ object PageRank extends Logging {
       val (oldPR, lastDelta) = attr
       val newPR = oldPR + (1.0 - resetProb) * msgSum
       
-      logger.logVPExecutionTime("pageRankDataset","pageRankProgram", id,  
-        Pregel.getCurrentIteration, System.nanoTime() - startTime)
+      // logger.logVPExecutionTime("pageRankDataset","pageRankProgram", id,  
+      //   Pregel.getCurrentIteration, System.nanoTime() - startTime)
       // vertexProgramRuns += 1
       // if (vertexProgramRuns > 1)
       //   avgRunTime = (avgRunTime + System.nanoTime() - startTime)/2
@@ -446,10 +446,10 @@ object PageRank extends Logging {
     }
 
     def sendMessage(edge: EdgeTriplet[(Double, Double), Double]) = {
-      logger.logIncomingMsg("pageRankDataset","pageRankProgram", edge.dstId, 
-        Pregel.getCurrentIteration, 1)
-      logger.logOutgoingMsg("pageRankDataset","pageRankProgram", edge.srcId, 
-        Pregel.getCurrentIteration, 1)
+      // logger.logIncomingMsg("pageRankDataset","pageRankProgram", edge.dstId, 
+      //   Pregel.getCurrentIteration, 1)
+      // logger.logOutgoingMsg("pageRankDataset","pageRankProgram", edge.srcId, 
+      //   Pregel.getCurrentIteration, 1)
       // inOutMsgs += 1
       inOutMsgs.add(1)
       if (edge.srcAttr._2 > tol) {
@@ -459,7 +459,10 @@ object PageRank extends Logging {
       }
     }
 
-    def messageCombiner(a: Double, b: Double): Double = a + b
+    def messageCombiner(a: Double, b: Double): Double =  {
+      numberOfReduce.add(1)
+      a + b
+    }
 
     // The initial message received by all vertices in PageRank
     val initialMessage = if (personalized) 0.0 else resetProb / (1.0 - resetProb)

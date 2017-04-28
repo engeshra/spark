@@ -264,6 +264,28 @@ class GraphImpl[VD: ClassTag, ED: ClassTag] protected (
     }
   }
 
+  override def outerJoinVerticesWithAnalytics[U: ClassTag, VD2: ClassTag]
+      (other: RDD[(VertexId, U)])
+      (analytics: PregelAnalytics)
+      (updateF: (VertexId, VD, Option[U]) => VD2)
+      (implicit eq: VD =:= VD2 = null): Graph[VD2, ED] = {
+    // The implicit parameter eq will be populated by the compiler if VD and VD2 are equal, and left
+    // null if not
+    if (eq != null) {
+      vertices.cache()
+      // updateF preserves type, so we can use incremental replication
+      val newVerts = vertices.leftJoin(other)(updateF).cache()
+      val changedVerts = vertices.asInstanceOf[VertexRDD[VD2]].diff(newVerts)
+      val newReplicatedVertexView = replicatedVertexView.asInstanceOf[ReplicatedVertexView[VD2, ED]]
+        .updateVerticesWithAnalytics(changedVerts, analytics)
+      new GraphImpl(newVerts, newReplicatedVertexView)
+    } else {
+      // updateF does not preserve type, so we must re-replicate all vertices
+      val newVerts = vertices.leftJoin(other)(updateF)
+      GraphImpl(newVerts, replicatedVertexView.edges)
+    }
+  }
+
   /** Test whether the closure accesses the attribute with name `attrName`. */
   private def accessesVertexAttr(closure: AnyRef, attrName: String): Boolean = {
     try {

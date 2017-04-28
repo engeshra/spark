@@ -17,6 +17,8 @@
 
 package org.apache.spark.graphx
 
+import org.apache.spark.graphx._
+
 import scala.reflect.ClassTag
 
 import org.apache.spark.internal.Logging
@@ -55,13 +57,6 @@ import org.apache.spark.internal.Logging
  */
 object Pregel extends Logging {
 
-  private var currentIteration: Int = 0
-
-  def setCurrentIteration(iteration: Int): Unit = {
-    this.currentIteration = iteration
-  }
-
-  def getCurrentIteration(): Int = this.currentIteration
   /**
    * Execute a Pregel-like iterative vertex-parallel abstraction.  The
    * user-defined vertex-program `vprog` is executed in parallel on
@@ -139,7 +134,11 @@ object Pregel extends Logging {
     while (activeMessages > 0 && i < maxIterations) {
       // Receive the messages and update the vertices.
       prevG = g
-      g = g.joinVertices(messages)(vprog).cache()
+
+      val analytics = new PregelAnalytics()
+      analytics.setCurrentIteration(i)
+      g = g.joinVerticesWithAnalytics(messages)(analytics)(vprog).cache()
+
 
       val oldMessages = messages
       // Send new messages, skipping edges where neither side received a message. We must cache
@@ -152,8 +151,14 @@ object Pregel extends Logging {
       // and the vertices of g).
       activeMessages = messages.count()
 
-      setCurrentIteration(i)
+      // setCurrentIteration(i)
       logInfo("Pregel finished iteration " + i)
+
+      println("============= Analycitcs_iteration ==================")
+      println("|       iteration      |  number of distributed messages |")
+      println("============= ==================== ==================")
+      println("|        "+ i +"       |        "+ analytics.getNumberOfShippedVertices() +"  |")
+      println("============= ==================== ==================")
 
       // Unpersist the RDDs hidden by newly-materialized RDDs
       oldMessages.unpersist(blocking = false)
@@ -162,6 +167,8 @@ object Pregel extends Logging {
       // count the iteration
       i += 1
     }
+    println("============= Number of iteration ==================")
+    println(i)
     messages.unpersist(blocking = false)
     g
   } // end of apply

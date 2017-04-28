@@ -99,11 +99,20 @@ object Analytics extends Logging {
         println("GRAPHX: Number of edges " + graph.edges.count)
 
         var inOutMsgs = sc.longAccumulator("In/Out Messages")
+        var numberOfReduces = sc.longAccumulator("Number of reduces")
         var avgExecutionTime = sc.longAccumulator("Avg Execution Time")
-        val pr = PageRank.runWithAnalytics(graph, tol, (inOutMsgs, avgExecutionTime)).vertices.cache()
-        
-        println("============== GRAPHX: In/Out Messages: "+ inOutMsgs)
-        println("============== GRAPHX: Avg Execution Time: "+ avgExecutionTime.avg)
+        val pr = PageRank.runWithAnalytics(graph, tol, (inOutMsgs, avgExecutionTime, numberOfReduces)).vertices.cache()
+        println("======================================")
+        println("|             Statistics               |")
+        println("======================================")
+        println("|  Name            |       Value     |")
+        println("======================================")
+        println("| In/Out Messages  |" + inOutMsgs.value  +"|")
+        println("| Avg Execution Time  |" + avgExecutionTime.avg  +"|")
+        println("| Number of reduces  |" + numberOfReduces.value  +"|")
+        println("======================================")
+        // println("============== GRAPHX: In/Out Messages: "+ inOutMsgs)
+        // println("============== GRAPHX: Avg Execution Time: "+ avgExecutionTime.avg)
 
         println("GRAPHX: Total rank: " + pr.map(_._2).reduce(_ + _))
         if (!outFname.isEmpty) {

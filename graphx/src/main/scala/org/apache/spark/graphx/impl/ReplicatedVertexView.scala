@@ -73,6 +73,7 @@ class ReplicatedVertexView[VD: ClassTag, ED: ClassTag](
             (pid, edgePartition.updateVertices(shippedVertsIter.flatMap(_._2.iterator)))
         }
       })
+      // shippedVerts
       edges = newEdges
       hasSrcId = includeSrc
       hasDstId = includeDst
@@ -115,6 +116,27 @@ class ReplicatedVertexView[VD: ClassTag, ED: ClassTag](
           (pid, edgePartition.updateVertices(shippedVertsIter.flatMap(_._2.iterator)))
       }
     })
+    new ReplicatedVertexView(newEdges, hasSrcId, hasDstId)
+  }
+
+  /**
+   * Return a new `ReplicatedVertexView` where vertex attributes in edge partition are updated using
+   * `updates`. This ships a vertex attribute only to the edge partitions where it is in the
+   * position(s) specified by the attribute shipping level.
+   */
+  def updateVerticesWithAnalytics(updates: VertexRDD[VD], analytics: PregelAnalytics): ReplicatedVertexView[VD, ED] = {
+    val shippedVerts = updates.shipVertexAttributes(hasSrcId, hasDstId)
+      .setName("ReplicatedVertexView.updateVertices - shippedVerts %s %s (broadcast)".format(
+        hasSrcId, hasDstId))
+      .partitionBy(edges.partitioner.get)
+
+    val newEdges = edges.withPartitionsRDD(edges.partitionsRDD.zipPartitions(shippedVerts) {
+      (ePartIter, shippedVertsIter) => ePartIter.map {
+        case (pid, edgePartition) =>
+          (pid, edgePartition.updateVertices(shippedVertsIter.flatMap(_._2.iterator)))
+      }
+    })
+    analytics.setNumberOfShippedVertices(shippedVerts.count())
     new ReplicatedVertexView(newEdges, hasSrcId, hasDstId)
   }
 }

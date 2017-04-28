@@ -23,6 +23,8 @@ import scala.reflect.ClassTag
 
 import org.apache.spark.internal.Logging
 
+import scala.collection.mutable.ListBuffer
+
 /**
  * Implements a Pregel-like bulk-synchronous message-passing API.
  *
@@ -131,6 +133,9 @@ object Pregel extends Logging {
     // Loop
     var prevG: Graph[VD, ED] = null
     var i = 0
+
+    var iterationsShippedVertices = new ListBuffer[Long]()
+
     while (activeMessages > 0 && i < maxIterations) {
       // Receive the messages and update the vertices.
       prevG = g
@@ -151,14 +156,9 @@ object Pregel extends Logging {
       // and the vertices of g).
       activeMessages = messages.count()
 
+      iterationsShippedVertices += analytics.getNumberOfShippedVertices()
       // setCurrentIteration(i)
       logInfo("Pregel finished iteration " + i)
-
-      println("============= Analycitcs_iteration ==================")
-      println("|       iteration      |  number of distributed messages |")
-      println("============= ==================== ==================")
-      println("|        "+ i +"       |        "+ analytics.getNumberOfShippedVertices() +"  |")
-      println("============= ==================== ==================")
 
       // Unpersist the RDDs hidden by newly-materialized RDDs
       oldMessages.unpersist(blocking = false)
@@ -166,6 +166,14 @@ object Pregel extends Logging {
       prevG.edges.unpersist(blocking = false)
       // count the iteration
       i += 1
+    }
+    val result = iterationsShippedVertices.toList
+    println("============= Analycitcs_iteration ==================")
+    println("|       iteration      |  number of distributed messages |")
+    println("============= ==================== ==================")
+    for(i <- 0 until result.length) { 
+      println("|        "+ i +"       |        "+ result(i) +"  |")
+      println("------------------------------------------------------")
     }
     println("============= Number of iteration ==================")
     println(i)

@@ -93,7 +93,12 @@ object Analytics extends Logging {
           numEdgePartitions = numEPart,
           edgeStorageLevel = edgeStorageLevel,
           vertexStorageLevel = vertexStorageLevel).cache()
-        val graph = partitionStrategy.foldLeft(unpartitionedGraph)(_.partitionBy(_))
+        val graph = unpartitionedGraph.partitionBy(PartitionStrategy.RandomVertexCut)
+
+        for (e <- graph.edges) {
+          println("====== Edges =========")
+          // println()
+        }
 
         println("GRAPHX: Number of vertices " + graph.vertices.count)
         println("GRAPHX: Number of edges " + graph.edges.count)
@@ -114,7 +119,7 @@ object Analytics extends Logging {
         println("|  Name            |       Value     |")
         println("======================================")
         println("| In/Out Messages  |" + inOutMsgs.value  +"|")
-        println("| Avg Execution Time  |" + avgExecutionTime.avg  +"|")
+        println("| Avg Execution Time |" + avgExecutionTime.avg  +"|")
         println("| Number of reduces  |" + numberOfReduces.value  +"|")
         println("======================================")
         // println("============== GRAPHX: In/Out Messages: "+ inOutMsgs)

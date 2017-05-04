@@ -125,18 +125,22 @@ class ReplicatedVertexView[VD: ClassTag, ED: ClassTag](
    * position(s) specified by the attribute shipping level.
    */
   def updateVerticesWithAnalytics(updates: VertexRDD[VD], analytics: PregelAnalytics): ReplicatedVertexView[VD, ED] = {
-    val shippedVerts = updates.shipVertexAttributes(hasSrcId, hasDstId)
-      .setName("ReplicatedVertexView.updateVertices - shippedVerts %s %s (broadcast)".format(
+    val updatesVertices = updates.shipVertexAttributes(true, true)
+    val shippedVerts = updatesVertices.setName("ReplicatedVertexView.updateVertices - shippedVerts %s %s (broadcast)".format(
         hasSrcId, hasDstId))
       .partitionBy(edges.partitioner.get)
 
+    println("Update_vertices1 = "+updates.count())
+    // println("Update_vertices2 = ")
+    // println("Update_vertices3 = "+updates.getPartitions.count())
+    
     val newEdges = edges.withPartitionsRDD(edges.partitionsRDD.zipPartitions(shippedVerts) {
       (ePartIter, shippedVertsIter) => ePartIter.map {
-        case (pid, edgePartition) =>
+        case (pid, edgePartition) => 
           (pid, edgePartition.updateVertices(shippedVertsIter.flatMap(_._2.iterator)))
       }
     })
-    analytics.setNumberOfShippedVertices(shippedVerts.count())
+    analytics.setNumberOfShippedVertices(updates.count())
     new ReplicatedVertexView(newEdges, hasSrcId, hasDstId)
   }
 }

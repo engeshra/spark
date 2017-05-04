@@ -88,6 +88,7 @@ class EdgePartition[
     System.arraycopy(vertexAttrs, 0, newVertexAttrs, 0, vertexAttrs.length)
     while (iter.hasNext) {
       val kv = iter.next()
+      // println("newVertex="+kv._1)
       newVertexAttrs(global2local(kv._1)) = kv._2
     }
     new EdgePartition(
@@ -283,6 +284,7 @@ class EdgePartition[
   def innerJoin[ED2: ClassTag, ED3: ClassTag]
       (other: EdgePartition[ED2, _])
       (f: (VertexId, VertexId, ED, ED2) => ED3): EdgePartition[ED3, VD] = {
+    println("I am in inner Join")
     val builder = new ExistingEdgePartitionBuilder[ED3, VD](
       global2local, local2global, vertexAttrs, activeSet)
     var i = 0

@@ -144,7 +144,6 @@ object Pregel extends Logging {
       analytics.setCurrentIteration(i)
       g = g.joinVerticesWithAnalytics(messages)(analytics)(vprog).cache()
 
-
       val oldMessages = messages
       // Send new messages, skipping edges where neither side received a message. We must cache
       // messages so it can be materialized on the next line, allowing us to uncache the previous
@@ -167,6 +166,9 @@ object Pregel extends Logging {
       // count the iteration
       i += 1
     }
+
+    // print statistics of running application
+
     val result = iterationsShippedVertices.toList
     println("============= Analycitcs_iteration ==================")
     println("|       iteration      |  number of distributed messages |")

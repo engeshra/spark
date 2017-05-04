@@ -95,10 +95,10 @@ object Analytics extends Logging {
           vertexStorageLevel = vertexStorageLevel).cache()
         val graph = unpartitionedGraph.partitionBy(PartitionStrategy.RandomVertexCut)
 
-        for (e <- graph.edges) {
-          println("====== Edges =========")
-          // println()
-        }
+        // for (e <- graph.edges) {
+        //   println("====== Edges =========")
+        //   // println()
+        // }
 
         println("GRAPHX: Number of vertices " + graph.vertices.count)
         println("GRAPHX: Number of edges " + graph.edges.count)
@@ -145,20 +145,44 @@ object Analytics extends Logging {
         println("======================================")
         println("|      Connected Components          |")
         println("======================================")
-
+        val tol = options.remove("tol").map(_.toFloat).getOrElse(0.001F)
         val sc = new SparkContext(conf.setAppName("ConnectedComponents(" + fname + ")"))
-        val unpartitionedGraph = GraphLoader.edgeListFile(sc, fname,
+        val unpartitionedGraph = GraphLoader.edgeListFile(sc, filePath,
           numEdgePartitions = numEPart,
           edgeStorageLevel = edgeStorageLevel,
           vertexStorageLevel = vertexStorageLevel).cache()
         val graph = partitionStrategy.foldLeft(unpartitionedGraph)(_.partitionBy(_))
 
-        val cc = ConnectedComponents.run(graph)
+        println("GRAPHX: Number of vertices " + graph.vertices.count)
+        println("GRAPHX: Number of edges " + graph.edges.count)
+
+        val startTime: Long = System.nanoTime()
+        var inOutMsgs = sc.longAccumulator("In/Out Messages")
+        var numberOfReduces = sc.longAccumulator("Number of reduces")
+        var avgExecutionTime = sc.longAccumulator("Avg Execution Time")
+        val cc = ConnectedComponents.runWithAnalytics(graph, Int.MaxValue, (inOutMsgs, avgExecutionTime, numberOfReduces))
+        // val pr = PageRank.runWithAnalytics(graph, tol, (inOutMsgs, avgExecutionTime, numberOfReduces)).vertices.cache()
+        println("============ Total Execution Time =================")
+        println(System.nanoTime() - startTime)
+        println("============ Graph size =================")
+        println("Graph size: vertices - |"+graph.vertices.count())
+        println("Graph size: edges - |"+graph.edges.count())
+        println("======================================")
+        println("|             Statistics               |")
+        println("======================================")
+        println("|  Name            |       Value     |")
+        println("======================================")
+        println("| In/Out Messages  |" + inOutMsgs.value  +"|")
+        println("| Avg Execution Time |" + avgExecutionTime.avg  +"|")
+        println("| Number of reduces  |" + numberOfReduces.value  +"|")
+        println("======================================")
+
+        // val cc = ConnectedComponents.run(graph)
         println("Components: " + cc.vertices.map { case (vid, data) => data }.distinct())
 
         // parse experiments log and then push result to statistical results
-        val parser = new GraphXStatisticsParser()
-        parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", fname, "ConnectedComponents", graph)
+        // val parser = new GraphXStatisticsParser()
+        // parser.statisticsResult(sc, "experiments/logs/experiment.log", "experiments/results/statistical_result.csv", fname, "ConnectedComponents", graph)
 
         sc.stop()
 
